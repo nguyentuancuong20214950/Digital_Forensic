@@ -168,22 +168,27 @@ class SteganoToolApp:
 
     def run_embed(self):
         if not self.cover_path.get() or not self.key_k.get():
-            messagebox.showwarning("Thiếu dữ liệu", "Vui lòng chọn ảnh và nhập khóa K!")
+            messagebox.showwarning("Lỗi", "Vui lòng chọn ảnh và nhập khóa K!")
             return
         
         cover = cv2.imread(self.cover_path.get(), cv2.IMREAD_GRAYSCALE)
         key = self.key_k.get()
         method = self.method_var.get()
         
-        # Lấy tin nhắn
+        # LẤY TIN NHẮN VÀ LÀM SẠCH (TRÁNH LỖI FILE TEXT)
         if self.text_file_path.get() != "Chưa chọn file":
-            with open(self.text_file_path.get(), 'r', encoding='utf-8') as f:
-                msg = f.read()
+            try:
+                # Dùng encoding='utf-8' để đọc được tiếng Việt/ký tự đặc biệt
+                with open(self.text_file_path.get(), 'r', encoding='utf-8') as f:
+                    msg = f.read().strip() # .strip() để bỏ dấu xuống dòng thừa ở cuối file
+            except Exception as e:
+                messagebox.showerror("Lỗi đọc file", f"Không thể đọc file text: {e}")
+                return
         else:
             msg = self.msg_input.get("1.0", tk.END).strip()
 
         if not msg:
-            messagebox.showwarning("Lỗi", "Vui lòng nhập tin nhắn!")
+            messagebox.showwarning("Lỗi", "Tin nhắn trống!")
             return
 
         try:
