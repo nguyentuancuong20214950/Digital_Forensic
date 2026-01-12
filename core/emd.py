@@ -67,17 +67,18 @@ class EMD:
         
         # --- 1. EXTRACT DIGITS ---
         for i in range(n_digits):
-            p1, p2 = flat[2*i], flat[2*i+1]
+            p1, p2 = int(flat[2*i]), int(flat[2*i+1])
             # Calculate f to get the secret digit back
             f = (p1 * 1 + p2 * 2) % 5
             digits.append(f)
             
         # --- 2. RECONSTRUCT VALUE ---
-        # Rebuild the large integer from Base-5 digits
+        # Rebuild the large integer from Base-5 digits (use Python int, not np.int32)
+        # digits are in LSB-to-MSB order (same as embed)
         val = 0
         power = 1
         for d in digits:
-            val += d * power
+            val += int(d) * power
             power *= 5
             
         # --- 3. RECONSTRUCT BINARY (Sentinel Removal) ---

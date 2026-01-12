@@ -208,8 +208,8 @@ class SteganoToolApp:
             return PVD.embed(cover, msg, key)
             
         elif method_name == "EMD":
-            # EMD chỉ nhúng 1 lớp, trả về (stego_img, 1)
-            return EMD.embed(cover, msg, key), 1
+            # EMD trả về (stego_img, n_digits)
+            return EMD.embed(cover, msg, key)
             
         elif method_name == "Histogram Shifting":
             # Trả về (stego_img, peak) - peak cần cho extract
@@ -237,7 +237,12 @@ class SteganoToolApp:
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         cover_name = os.path.basename(self.cover_path.get()).replace(".pgm", "")
         
-        filename = f"stego_{method}_{cover_name}_{timestamp}.png"
+        # Thêm n_digits vào filename (nếu có)
+        param_suffix = ""
+        if hasattr(self, 'embed_param') and isinstance(self.embed_param, int):
+            param_suffix = f"_nd{self.embed_param}"
+        
+        filename = f"stego_{method}_{cover_name}{param_suffix}_{timestamp}.png"
         filepath = os.path.join(self.output_dir, filename)
         
         # Lưu ảnh
@@ -426,7 +431,34 @@ class SteganoToolApp:
                             continue
                             
             elif method == "EMD":
-                msg = EMD.extract(self.loaded_stego, key, n_digits=1)
+                # Cố gắng lấy n_digits từ tên file
+                filename = os.path.basename(self.stego_path.get())
+                n_digits_from_file = None
+                
+                # Parse "_nd{number}_" từ filename, vd: stego_EMD_1_nd256_20250112.png
+                import re
+                match = re.search(r'_nd(\d+)_', filename)
+                if match:
+                    n_digits_from_file = int(match.group(1))
+                
+                if n_digits_from_file:
+                    # Nếu tìm thấy n_digits trong filename, dùng nó trực tiếp
+                    try:
+                        msg = EMD.extract(self.loaded_stego, key, n_digits=n_digits_from_file)
+                    except Exception as e:
+                        msg = None
+                        self.extract_txt.delete("1.0", tk.END)
+                        self.extract_txt.insert(tk.END, f"❌ LỖI EXTRACT EMD!\n\n{str(e)}\n\n")
+                        self.extract_txt.insert(tk.END, f"n_digits = {n_digits_from_file}")
+                        return
+                else:
+                    # Nếu không tìm thấy trong filename, báo lỗi
+                    self.extract_txt.delete("1.0", tk.END)
+                    self.extract_txt.insert(tk.END, "❌ KHÔNG TÌM THẤY n_digits!\n\n")
+                    self.extract_txt.insert(tk.END, "Để extract EMD, ảnh phải được lưu bằng nút 'LƯU ẢNH STEGO'\n\n")
+                    self.extract_txt.insert(tk.END, "Tên file phải có dạng:\nstego_EMD_..._nd{NUMBER}_TIMESTAMP.png\n\n")
+                    self.extract_txt.insert(tk.END, "Ví dụ: stego_EMD_1_nd45_20250112_150000.png")
+                    return
                 
             elif method == "Difference Expansion":
                 msg = DifferenceExpansion.extract(self.loaded_stego, key)
