@@ -1,42 +1,41 @@
 import numpy as np
 import cv2
 
-from core.pvd import PVD
 
 class Interpolation:
     @staticmethod
-    def embed(image, message, key):
-        h, w = image.shape
-        # Down-sample
-        low_res = cv2.resize(image, (w//2, h//2), interpolation=cv2.INTER_NEAREST)
-        # Up-sample
-        up_res = cv2.resize(low_res, (w, h), interpolation=cv2.INTER_LINEAR)
+    def embed(image, message):
+        # Simple LSB embedding on pixels
+        pixels = image.flatten().astype(np.int32)
+        bin_msg = ''.join([format(b, "08b") for b in message.encode('utf-8')]) + "00000000"
         
-        diff = image.astype(np.int16) - up_res.astype(np.int16)
-        bin_msg = ''.join([format(ord(i), "08b") for i in message]) + "00000000"
-        
-        # Nhúng vào LSB của mảng sai số
-        flat_diff = diff.flatten()
-        for i in range(min(len(bin_msg), len(flat_diff))):
+        for i in range(min(len(bin_msg), len(pixels))):
             bit = int(bin_msg[i])
-            flat_diff[i] = (flat_diff[i] & ~1) | bit
-            
-        stego = up_res.astype(np.int16) + flat_diff.reshape(image.shape)
-        return np.clip(stego, 0, 255).astype(np.uint8), len(bin_msg)
+            pixels[i] = (pixels[i] & ~1) | bit
+        
+        stego = pixels.reshape(image.shape)
+        return stego.astype(np.uint8), len(bin_msg)
 
     @staticmethod
-    def extract(stego, key, msg_len):
-        h, w = stego.shape
-        # Tái tạo lại ảnh up_res giống hệt lúc nhúng
-        low_res = cv2.resize(stego, (w//2, h//2), interpolation=cv2.INTER_NEAREST)
-        up_res = cv2.resize(low_res, (w, h), interpolation=cv2.INTER_LINEAR)
-        
-        # Sai số hiện tại chính là diff đã chứa bit
-        diff = stego.astype(np.int16) - up_res.astype(np.int16)
-        flat_diff = diff.flatten()
-        
+    def extract(stego, msg_len):
+        pixels = stego.flatten()
         bin_msg = ""
-        for i in range(msg_len):
-            bin_msg += str(abs(flat_diff[i]) % 2)
-            
-        return PVD.bin_to_msg(bin_msg)
+        for i in range(min(msg_len, len(pixels))):
+            bit = int(pixels[i]) & 1
+            bin_msg += str(bit)
+        
+        # Convert binary to bytes then decode UTF-8
+        byte_list = []
+        for i in range(0, len(bin_msg), 8):
+            byte = bin_msg[i:i+8]
+            if len(byte) < 8:
+                break
+            byte_val = int(byte, 2)
+            if byte_val == 0:  # NULL terminator
+                break
+            byte_list.append(byte_val)
+        
+        try:
+            return bytes(byte_list).decode('utf-8')
+        except:
+            return bytes(byte_list).decode('utf-8', errors='ignore')

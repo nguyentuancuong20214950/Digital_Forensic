@@ -48,6 +48,32 @@ class SteganoToolApp:
             
         self.setup_ui()
 
+    def toggle_key_visibility_embed(self, *args):
+        """Hiển thị/ẩn khóa K dựa trên thuật toán được chọn"""
+        method = self.method_var.get()
+        needs_key = method in ["LSB Substitution", "LSB Matching"]
+        
+        if needs_key:
+            self.key_label_embed.pack(anchor="w", pady=(10,0))
+            self.key_entry_embed.pack(fill="x")
+        else:
+            self.key_label_embed.pack_forget()
+            self.key_entry_embed.pack_forget()
+    
+    def toggle_key_visibility_extract(self, *args):
+        """Hiển thị/ẩn khóa K dựa trên thuật toán được chọn"""
+        method = self.method_extract_var.get()
+        needs_key = method in ["LSB Substitution", "LSB Matching"]
+        
+        if needs_key:
+            self.key_label_extract.pack(anchor="w", pady=(10,0))
+            self.key_entry_extract.pack(fill="x")
+            self.key_warning_extract.pack(anchor="w", pady=5)
+        else:
+            self.key_label_extract.pack_forget()
+            self.key_entry_extract.pack_forget()
+            self.key_warning_extract.pack_forget()
+
     def setup_ui(self):
         # Tạo Notebook (Tabs)
         notebook = ttk.Notebook(self.root)
@@ -81,10 +107,13 @@ class SteganoToolApp:
         methods = ["LSB Substitution", "LSB Matching", "PVD", "EMD", "Histogram Shifting", "Interpolation", "Difference Expansion"]
         method_menu = ttk.OptionMenu(left, self.method_var, methods[0], *methods)
         method_menu.pack(fill="x", pady=5)
+        self.method_var.trace('w', self.toggle_key_visibility_embed)
 
-        # 3. Khóa K
-        ttk.Label(left, text="3. Nhập khóa bảo mật K:").pack(anchor="w", pady=(10,0))
-        ttk.Entry(left, textvariable=self.key_k_embed, show="*").pack(fill="x")
+        # 3. Khóa K (chỉ hiện với LSB methods)
+        self.key_label_embed = ttk.Label(left, text="3. Nhập khóa bảo mật K:")
+        self.key_label_embed.pack(anchor="w", pady=(10,0))
+        self.key_entry_embed = ttk.Entry(left, textvariable=self.key_k_embed, show="*")
+        self.key_entry_embed.pack(fill="x")
 
         # 4. Tin nhắn
         ttk.Label(left, text="4. Tin nhắn bí mật:").pack(anchor="w", pady=(10,0))
@@ -135,13 +164,17 @@ class SteganoToolApp:
         methods = ["LSB Substitution", "LSB Matching", "PVD", "EMD", "Histogram Shifting", "Interpolation", "Difference Expansion"]
         method_menu_extract = ttk.OptionMenu(left, self.method_extract_var, methods[0], *methods)
         method_menu_extract.pack(fill="x", pady=5)
+        self.method_extract_var.trace('w', self.toggle_key_visibility_extract)
 
-        # 3. Khóa K
-        ttk.Label(left, text="3. Nhập khóa K (phải đúng):").pack(anchor="w", pady=(10,0))
-        ttk.Entry(left, textvariable=self.key_k_extract, show="*").pack(fill="x")
+        # 3. Khóa K (chỉ hiện với LSB methods)
+        self.key_label_extract = ttk.Label(left, text="3. Nhập khóa K (phải đúng):")
+        self.key_label_extract.pack(anchor="w", pady=(10,0))
+        self.key_entry_extract = ttk.Entry(left, textvariable=self.key_k_extract, show="*")
+        self.key_entry_extract.pack(fill="x")
         
-        ttk.Label(left, text="⚠️ Nếu nhập sai khóa K,\ntin nhắn sẽ bị sai!", 
-                  foreground="red", font=("Arial", 8, "italic")).pack(anchor="w", pady=5)
+        self.key_warning_extract = ttk.Label(left, text="⚠️ Nếu nhập sai khóa K,\ntin nhắn sẽ bị sai!", 
+                  foreground="red", font=("Arial", 8, "italic"))
+        self.key_warning_extract.pack(anchor="w", pady=5)
 
         # 4. Nút thực thi
         ttk.Button(left, text="🔓 EXTRACT MESSAGE", command=self.run_extract_tab).pack(fill="x", pady=20)
@@ -204,24 +237,25 @@ class SteganoToolApp:
             return LSB_Matching.embed(cover, msg, key)
             
         elif method_name == "PVD":
-            # Trả về: (stego_img, "Adaptive")
-            return PVD.embed(cover, msg, key)
+            # Trả về: (stego_img, "PVD-Adaptive") - đã có sẵn từ PVD.embed()
+            return PVD.embed(cover, msg)
             
         elif method_name == "EMD":
             # EMD trả về (stego_img, n_digits)
-            return EMD.embed(cover, msg, key)
+            stego, n_digits = EMD.embed(cover, msg)
+            return stego, n_digits
             
         elif method_name == "Histogram Shifting":
             # Trả về (stego_img, peak) - peak cần cho extract
-            return HistogramShifting.embed(cover, msg, key)
+            return HistogramShifting.embed(cover, msg)
             
         elif method_name == "Difference Expansion":
-            # Trả về: (stego_img, layers)
-            return DifferenceExpansion.embed(cover, msg, key)
+            # Trả về: (stego_img, "DE-Difference") - đã có sẵn từ DE.embed()
+            return DifferenceExpansion.embed(cover, msg)
             
         elif method_name == "Interpolation":
-            # Trả về (stego_img, 1)
-            return Interpolation.embed(cover, msg, key), 1
+            # Trả về (stego_img, msg_len) - đã có sẵn từ Interpolation.embed()
+            return Interpolation.embed(cover, msg)
             
         else:
             raise ValueError(f"Thuật toán {method_name} chưa được tích hợp!")
@@ -270,13 +304,19 @@ class SteganoToolApp:
                 self.loaded_stego = img
 
     def run_embed(self):
-        if not self.cover_path.get() or not self.key_k_embed.get():
-            messagebox.showwarning("Lỗi", "Vui lòng chọn ảnh và nhập khóa K!")
+        method = self.method_var.get()
+        needs_key = method in ["LSB Substitution", "LSB Matching"]
+        
+        if not self.cover_path.get():
+            messagebox.showwarning("Lỗi", "Vui lòng chọn ảnh!")
+            return
+        
+        if needs_key and not self.key_k_embed.get():
+            messagebox.showwarning("Lỗi", "Vui lòng nhập khóa K cho thuật toán LSB!")
             return
         
         cover = cv2.imread(self.cover_path.get(), cv2.IMREAD_GRAYSCALE)
-        key = self.key_k_embed.get()
-        method = self.method_var.get()
+        key = self.key_k_embed.get() if needs_key else None
         
         # LẤY TIN NHẮN VÀ LÀM SẠCH (TRÁNH LỖI FILE TEXT)
         if self.text_file_path.get() != "Chưa chọn file":
@@ -357,16 +397,22 @@ class SteganoToolApp:
 
     def run_extract_tab(self):
         """Extract message từ tab Extract với key riêng"""
-        if not self.stego_path.get() or not self.key_k_extract.get():
-            messagebox.showwarning("Lỗi", "Vui lòng chọn ảnh stego và nhập khóa K!")
+        method = self.method_extract_var.get()
+        needs_key = method in ["LSB Substitution", "LSB Matching"]
+        
+        if not self.stego_path.get():
+            messagebox.showwarning("Lỗi", "Vui lòng chọn ảnh stego!")
+            return
+        
+        if needs_key and not self.key_k_extract.get():
+            messagebox.showwarning("Lỗi", "Vui lòng nhập khóa K cho thuật toán LSB!")
             return
         
         if not hasattr(self, 'loaded_stego'):
             messagebox.showwarning("Lỗi", "Vui lòng load lại ảnh stego!")
             return
         
-        method = self.method_extract_var.get()
-        key = self.key_k_extract.get()
+        key = self.key_k_extract.get() if needs_key else None
         
         # Lấy param từ tên file nếu có, hoặc dùng default
         filename = os.path.basename(self.stego_path.get())
@@ -413,7 +459,7 @@ class SteganoToolApp:
                         continue
                         
             elif method == "PVD":
-                msg = PVD.extract(self.loaded_stego, key)
+                msg = PVD.extract(self.loaded_stego)
                 
             elif method == "Histogram Shifting":
                 # Cần tìm peak value - thử các giá trị phổ biến
@@ -423,7 +469,7 @@ class SteganoToolApp:
                 for peak in peak_candidates:
                     if 0 < peak < 255:
                         try:
-                            temp_msg = HistogramShifting.extract(self.loaded_stego, key, peak=int(peak))
+                            temp_msg = HistogramShifting.extract(self.loaded_stego, peak=int(peak))
                             if temp_msg and len(temp_msg) > 5:
                                 msg = temp_msg
                                 break
@@ -444,7 +490,7 @@ class SteganoToolApp:
                 if n_digits_from_file:
                     # Nếu tìm thấy n_digits trong filename, dùng nó trực tiếp
                     try:
-                        msg = EMD.extract(self.loaded_stego, key, n_digits=n_digits_from_file)
+                        msg = EMD.extract(self.loaded_stego, n_digits=n_digits_from_file)
                     except Exception as e:
                         msg = None
                         self.extract_txt.delete("1.0", tk.END)
@@ -461,35 +507,66 @@ class SteganoToolApp:
                     return
                 
             elif method == "Difference Expansion":
-                msg = DifferenceExpansion.extract(self.loaded_stego, key)
+                msg = DifferenceExpansion.extract(self.loaded_stego)
                 
             elif method == "Interpolation":
-                msg = Interpolation.extract(self.loaded_stego, key, msg_len=100)
+                # Parse msg_len từ filename nếu có
+                import re
+                filename = os.path.basename(self.stego_path.get())
+                msg_len_from_file = None
+                
+                # Tìm msg_len trong filename (nếu có format _nd{number}_)
+                match = re.search(r'_nd(\d+)_', filename)
+                if match:
+                    msg_len_from_file = int(match.group(1))
+                
+                if msg_len_from_file:
+                    try:
+                        msg = Interpolation.extract(self.loaded_stego, msg_len=msg_len_from_file)
+                    except Exception as e:
+                        self.extract_txt.delete("1.0", tk.END)
+                        self.extract_txt.insert(tk.END, f"❌ LỖI EXTRACT INTERPOLATION!\n\n{str(e)}")
+                        return
+                else:
+                    # Nếu không tìm thấy, thử extract với msg_len lớn
+                    try:
+                        # Thử với msg_len lớn (tối đa 10000 bits)
+                        msg = Interpolation.extract(self.loaded_stego, msg_len=10000)
+                    except Exception as e:
+                        self.extract_txt.delete("1.0", tk.END)
+                        self.extract_txt.insert(tk.END, f"❌ LỖI EXTRACT!\n\n{str(e)}")
+                        return
             else:
                 msg = "Thuật toán chưa được hỗ trợ."
             
             # Hiển thị kết quả
             self.extract_txt.delete("1.0", tk.END)
             
-            if msg and len(msg) > 0:
+            if msg and len(msg.strip()) > 0:
                 self.extract_txt.insert(tk.END, "✅ TRÍCH XUẤT THÀNH CÔNG!\n\n")
                 self.extract_txt.insert(tk.END, "=" * 60 + "\n")
                 self.extract_txt.insert(tk.END, msg)
                 self.extract_txt.insert(tk.END, "\n" + "=" * 60 + "\n")
                 self.extract_txt.insert(tk.END, f"\nĐộ dài: {len(msg)} ký tự")
             else:
-                self.extract_txt.insert(tk.END, "❌ KHÔNG TÌM THẤY TIN NHẮN!\n\n")
+                self.extract_txt.insert(tk.END, "❌ KHÔNG TÌM THẤY TIN NHẮN HỢP LỆ!\n\n")
                 self.extract_txt.insert(tk.END, "Có thể do:\n")
-                self.extract_txt.insert(tk.END, "• Sai khóa K\n")
+                if method in ["LSB Substitution", "LSB Matching"]:
+                    self.extract_txt.insert(tk.END, "• Sai khóa K\n")
                 self.extract_txt.insert(tk.END, "• Sai thuật toán\n")
                 self.extract_txt.insert(tk.END, "• Ảnh không phải stego image\n")
+                if method in ["EMD", "Interpolation"]:
+                    self.extract_txt.insert(tk.END, "• Thiếu thông tin n_digits/msg_len trong tên file\n")
                 
         except Exception as e:
             self.extract_txt.delete("1.0", tk.END)
             self.extract_txt.insert(tk.END, f"❌ LỖI TRÍCH XUẤT!\n\n{str(e)}\n\n")
             self.extract_txt.insert(tk.END, "Vui lòng kiểm tra lại:\n")
-            self.extract_txt.insert(tk.END, "• Khóa K có đúng không?\n")
-            self.extract_txt.insert(tk.END, "• Thuật toán có đúng không?")
+            if method in ["LSB Substitution", "LSB Matching"]:
+                self.extract_txt.insert(tk.END, "• Khóa K có đúng không?\n")
+            self.extract_txt.insert(tk.END, "• Thuật toán có đúng không?\n")
+            if method in ["EMD", "Interpolation"]:
+                self.extract_txt.insert(tk.END, "• File có được lưu bằng nút 'LƯU ẢNH STEGO' không?")
 
 if __name__ == "__main__":
     root = tk.Tk()
