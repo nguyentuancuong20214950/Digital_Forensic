@@ -2,7 +2,7 @@ import numpy as np
 
 class EMD:
     @staticmethod
-    def embed(image, message):
+    def embed(image, message, key):
         """
         Embeds message using EMD (2 pixels per group, Base-5).
         """
@@ -55,7 +55,7 @@ class EMD:
         return np.clip(stego.reshape(image.shape), 0, 255).astype(np.uint8), len(digits)
 
     @staticmethod
-    def extract(stego, n_digits):
+    def extract(stego, key, n_digits):
         """
         Extracts message. Requires 'n_digits' (returned from embed) to function.
         """

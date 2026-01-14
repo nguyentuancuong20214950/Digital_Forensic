@@ -2,7 +2,7 @@ import numpy as np
 
 class HistogramShifting:
     @staticmethod
-    def embed(image, message):
+    def embed(image, message, key):
         # Chuyển message sang UTF-8 bytes và thêm 3 bytes NULL để đánh dấu kết thúc
         data = message.encode('utf-8') + b'\x00\x00\x00'
         bin_msg = ''.join([format(b, "08b") for b in data])
@@ -60,7 +60,7 @@ class HistogramShifting:
         return np.clip(stego, 0, 255).astype(np.uint8), peak
 
     @staticmethod
-    def extract(stego, peak):
+    def extract(stego, key, peak):
         bin_msg = ""
         
         # Duyệt qua ảnh theo thứ tự để trích xuất bit
