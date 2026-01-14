@@ -3,7 +3,3 @@ data/input/*
 
 data/output/*
 !data/output/.gitkeep
-
-# Python cache
-__pycache__/
-*.pyc
