@@ -74,7 +74,7 @@ class SteganoToolApp:
         self.folder_cb = ttk.Combobox(left, values=["standard"], state="readonly")
         self.folder_cb.pack(fill="x", pady=5)
         self.folder_cb.set("standard")
-        ttk.Button(left, text="Duyệt ảnh (.pgm)", command=self.load_image).pack(fill="x")
+        ttk.Button(left, text="Duyệt ảnh (PGM/PNG/JPG/BMP)", command=self.load_image).pack(fill="x")
         ttk.Label(left, textvariable=self.cover_path, font=("Arial", 7), wraplength=180, foreground="blue").pack()
 
         # 2. Chọn thuật toán
@@ -170,7 +170,19 @@ class SteganoToolApp:
     def load_image(self):
         sub_folder = self.folder_cb.get()
         initial_dir = os.path.join(self.input_dir, sub_folder)
-        path = filedialog.askopenfilename(initialdir="data/input/", filetypes=[("PGM", "*.pgm")])
+        path = filedialog.askopenfilename(
+            initialdir=initial_dir, 
+            title="Chọn ảnh cover",
+            filetypes=[
+                ("All Images", "*.pgm *.png *.jpg *.jpeg *.bmp *.tiff *.tif"),
+                ("PGM", "*.pgm"),
+                ("PNG", "*.png"),
+                ("JPEG", "*.jpg *.jpeg"),
+                ("BMP", "*.bmp"),
+                ("TIFF", "*.tiff *.tif"),
+                ("All Files", "*.*")
+            ]
+        )
         if path:
             self.cover_path.set(path)
             img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
