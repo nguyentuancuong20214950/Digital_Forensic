@@ -128,16 +128,20 @@ class Interpolation:
             stego = stego.astype(np.uint8)
         h, w = stego.shape
 
-        # 1. Recreate small by taking the anchors from stego, then uscale to get cover image
+        # 1. Extract anchors from stego to recreate small image
         small = np.zeros((h // 2, w // 2), dtype=np.uint8)
-        anchors = Interpolation._anchor_coords_for_shape((h, w))
-        for (i, j) in anchors:
-            small[i // 2, j // 2] = stego[i, j]
-
+        for si in range(h // 2):
+            for sj in range(w // 2):
+                small[si, sj] = stego[si * 2, sj * 2]
+        
+        # 2. Upscale to get expected cover
         cover = Interpolation.upscale(small, (h, w))
 
-        # 2. Recompute embeddable positions and shuffle with same key
+        # 3. Recompute embeddable positions with same logic as embed
+        anchors = Interpolation._anchor_coords_for_shape((h, w))
         embeddable = [(i, j) for i in range(h) for j in range(w) if (i, j) not in anchors]
+        
+        # 4. Shuffle with same key
         rng = random.Random(key)
         rng.shuffle(embeddable)
 
